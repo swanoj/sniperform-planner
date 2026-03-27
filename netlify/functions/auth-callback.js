@@ -10,7 +10,6 @@ exports.handler = async (event, context) => {
   const redirectUri = process.env.URL + '/auth/callback';
 
   try {
-    // Exchange code for tokens
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -32,14 +31,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Get user info
     const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     const user = await userRes.json();
 
-    // Redirect back with tokens in URL fragment (never hits server logs)
-    const fragment = new URLSearchParams({
+    const params = new URLSearchParams({
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token || '',
       email: user.email || '',
@@ -47,7 +44,9 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 302,
-      headers: { Location: `/?connected=true#${fragment}` },
+      headers: { 
+        Location: `/?access_token=${encodeURIComponent(tokens.access_token)}&refresh_token=${encodeURIComponent(tokens.refresh_token||'')}&email=${encodeURIComponent(user.email||'')}` 
+      },
     };
   } catch (err) {
     return {
