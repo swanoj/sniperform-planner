@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sniperform — Shoot Planner</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -270,124 +271,183 @@ const VIDS=[
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let AV=0,AT='plan',addingFor=null;
-let driveToken=null,driveEmail=null,driveRefresh=null;
+let driveToken=null,driveEmail=null,driveRefresh=null,driveTokenExpiry=0;
 let rootFolderId=null;
 const videoFolderIds={};
 const clips={};
 const vcodes={v1:'META',v2:'HERO',v3:'TH',v4:'HOW'};
-const IS_STATIC_PAGES_HOST=window.location.hostname.endsWith('github.io');
+const GOOGLE_CLIENT_ID='998190177114-kl3rt9kh84nae872gk1rb6nrti11jdql.apps.googleusercontent.com';
+const DRIVE_SCOPES=[
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/userinfo.email'
+].join(' ');
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 function init(){
-  // Prefer query params from the OAuth callback, but keep hash support for older redirects.
-  const params=new URLSearchParams(window.location.search);
-  const hash=new URLSearchParams(window.location.hash.slice(1));
-  const accessToken=params.get('access_token')||hash.get('access_token');
-  const refreshToken=params.get('refresh_token')||hash.get('refresh_token');
-  const email=params.get('email')||hash.get('email');
-  const oauthError=params.get('error')||hash.get('error');
-  const cleanUrl=window.location.pathname||'/';
-
-  if(accessToken){
-    driveToken=accessToken;
-    driveRefresh=refreshToken||null;
-    driveEmail=email||'Google Drive';
-    localStorage.setItem('sf_drive_token',driveToken);
-    localStorage.setItem('sf_drive_refresh',driveRefresh||'');
-    localStorage.setItem('sf_drive_email',driveEmail);
-    window.history.replaceState({},'',cleanUrl);
-    onDriveConnected();
-  } else if(oauthError){
-    notif('Drive connection failed: '+oauthError,'err');
-    window.history.replaceState({},'',cleanUrl);
-  } else if(params.get('connected')==='true'){
-    // Token already saved
-    driveToken=localStorage.getItem('sf_drive_token');
-    driveRefresh=localStorage.getItem('sf_drive_refresh');
-    driveEmail=localStorage.getItem('sf_drive_email')||'Google Drive';
-    if(driveToken) onDriveConnected();
-    window.history.replaceState({},'',cleanUrl);
-  } else {
-    // Check localStorage
-    const saved=localStorage.getItem('sf_drive_token');
-    if(saved){
-      driveToken=saved;
-      driveRefresh=localStorage.getItem('sf_drive_refresh');
-      driveEmail=localStorage.getItem('sf_drive_email')||'Google Drive';
-      onDriveConnected();
-    }
-  }
-  if(IS_STATIC_PAGES_HOST&&!driveToken)applyStaticPagesDriveState();
+  restoreDriveSession();
   renderSidebar();renderAll();
 }
 
 // ── DRIVE AUTH ────────────────────────────────────────────────────────────────
 async function connectDrive(){
-  if(IS_STATIC_PAGES_HOST){
-    notif('This live GitHub Pages version runs without the Drive sync server. Use download/export here, or reopen the server-hosted build for Drive uploads.','info');
+  try{
+    setDriveConnecting();
+    notif('Opening Google login…','info');
+    const auth=await requestDriveAccess('consent');
+    driveToken=auth.access_token;
+    driveTokenExpiry=Date.now()+Math.max((auth.expires_in||3600)-60,60)*1000;
+    driveRefresh=null;
+    driveEmail=await fetchDriveEmail(driveToken);
+    persistDriveSession();
+    onDriveConnected();
+  }catch(e){
+    disconnectDrive({silent:true});
+    notif('Drive connection failed: '+formatDriveError(e),'err');
+  }
+}
+
+function restoreDriveSession(){
+  const savedToken=localStorage.getItem('sf_drive_token');
+  const savedEmail=localStorage.getItem('sf_drive_email');
+  const savedExpiry=Number(localStorage.getItem('sf_drive_exp')||0);
+
+  if(savedToken&&savedExpiry>Date.now()+60000){
+    driveToken=savedToken;
+    driveEmail=savedEmail||'Google Drive';
+    driveTokenExpiry=savedExpiry;
+    onDriveConnected({notify:false});
     return;
   }
-  try{
-    notif('Opening Google login…','info');
-    const res=await fetch('/api/auth-url');
-    if(!res.ok) throw new Error('Drive auth endpoint unavailable on this host');
-    const {url}=await res.json();
-    if(!url) throw new Error('Drive auth URL missing');
-    window.location.href=url;
-  }catch(e){
-    notif('Error: '+e.message,'err');
-  }
+
+  disconnectDrive({silent:true});
 }
 
-function applyStaticPagesDriveState(){
+function persistDriveSession(){
+  localStorage.setItem('sf_drive_token',driveToken||'');
+  localStorage.setItem('sf_drive_email',driveEmail||'Google Drive');
+  localStorage.setItem('sf_drive_exp',String(driveTokenExpiry||0));
+  localStorage.removeItem('sf_drive_refresh');
+}
+
+function setDriveConnecting(){
   document.getElementById('dot').classList.remove('on');
-  document.getElementById('drive-label').textContent='Drive: Off on GitHub Pages';
-  document.getElementById('connect-btn').textContent='Use Export / Download';
-  document.getElementById('connect-btn').title='Google Drive sync needs the server-hosted build';
+  document.getElementById('dot').classList.add('connecting');
+  document.getElementById('drive-label').textContent='Drive: Connecting…';
+  document.getElementById('connect-btn').textContent='Connecting…';
+  document.getElementById('connect-btn').style.opacity='0.8';
+  document.getElementById('connect-btn').disabled=true;
 }
 
-function onDriveConnected(){
+function onDriveConnected(options={}){
+  const {notify=true}=options;
+  document.getElementById('dot').classList.remove('connecting');
   document.getElementById('dot').classList.add('on');
   document.getElementById('drive-label').textContent='Drive: '+driveEmail;
   document.getElementById('connect-btn').textContent='✓ Connected';
   document.getElementById('connect-btn').style.opacity='0.6';
   document.getElementById('connect-btn').disabled=true;
-  notif('✓ Google Drive connected','ok');
+  if(notify) notif('✓ Google Drive connected','ok');
+  renderAll();
   ensureRootFolder();
 }
 
-function disconnectDrive(){
+function disconnectDrive(options={}){
+  const {silent=false}=options;
   driveToken=driveRefresh=driveEmail=null;
+  driveTokenExpiry=0;
   rootFolderId=null;
+  Object.keys(videoFolderIds).forEach(k=>delete videoFolderIds[k]);
   localStorage.removeItem('sf_drive_token');
-  localStorage.removeItem('sf_drive_refresh');
   localStorage.removeItem('sf_drive_email');
+  localStorage.removeItem('sf_drive_exp');
+  localStorage.removeItem('sf_drive_refresh');
   document.getElementById('dot').classList.remove('on');
+  document.getElementById('dot').classList.remove('connecting');
   document.getElementById('drive-label').textContent='Drive: Not Connected';
   document.getElementById('connect-btn').textContent='Connect Google Drive';
   document.getElementById('connect-btn').style.opacity='1';
   document.getElementById('connect-btn').disabled=false;
+  if(!silent) renderAll();
 }
 
 async function refreshDriveToken(){
-  if(!driveRefresh)return false;
   try{
-    const res=await fetch('/api/refresh-token',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({refresh_token:driveRefresh})
-    });
-    const data=await res.json();
-    if(data.access_token){
-      driveToken=data.access_token;
-      localStorage.setItem('sf_drive_token',driveToken);
-      return true;
-    }
+    if(driveToken&&driveTokenExpiry>Date.now()+60000) return true;
+    const auth=await requestDriveAccess('');
+    driveToken=auth.access_token;
+    driveTokenExpiry=Date.now()+Math.max((auth.expires_in||3600)-60,60)*1000;
+    persistDriveSession();
+    return true;
   }catch(e){}
   return false;
 }
 
+function ensureGoogleIdentity(timeout=8000){
+  if(window.google?.accounts?.oauth2) return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const start=Date.now();
+    const timer=setInterval(()=>{
+      if(window.google?.accounts?.oauth2){
+        clearInterval(timer);
+        resolve();
+      }else if(Date.now()-start>timeout){
+        clearInterval(timer);
+        reject(new Error('Google sign-in script did not load'));
+      }
+    },100);
+  });
+}
+
+async function requestDriveAccess(prompt){
+  await ensureGoogleIdentity();
+  return new Promise((resolve,reject)=>{
+    const client=window.google.accounts.oauth2.initTokenClient({
+      client_id:GOOGLE_CLIENT_ID,
+      scope:DRIVE_SCOPES,
+      callback:(response)=>{
+        if(response?.error){
+          reject(new Error(response.error));
+          return;
+        }
+        resolve(response);
+      },
+      error_callback:(err)=>reject(new Error(err?.type||err?.message||'google_auth_error')),
+    });
+    client.requestAccessToken({prompt});
+  });
+}
+
+async function fetchDriveEmail(token){
+  try{
+    const res=await fetch('https://www.googleapis.com/oauth2/v2/userinfo',{
+      headers:{Authorization:'Bearer '+token}
+    });
+    if(!res.ok) return 'Google Drive';
+    const user=await res.json();
+    return user.email||'Google Drive';
+  }catch(e){
+    return 'Google Drive';
+  }
+}
+
+function formatDriveError(err){
+  const raw=String(err?.message||err||'unknown_error');
+  if(raw.includes('popup_closed')) return 'Google sign-in was closed before it finished.';
+  if(raw.includes('popup_failed_to_open')) return 'Your browser blocked the Google sign-in popup.';
+  if(raw.includes('origin_mismatch')) return 'Add this site under Authorised JavaScript origins in Google Cloud.';
+  if(raw.includes('access_denied')) return 'Google Drive access was denied.';
+  return raw;
+}
+
 async function driveRequest(url,options={},retry=true){
+  if(driveTokenExpiry&&driveTokenExpiry<=Date.now()+5000){
+    const ok=await refreshDriveToken();
+    if(!ok){
+      disconnectDrive();
+      notif('Drive session expired — please reconnect','err');
+      return null;
+    }
+  }
   const res=await fetch(url,{...options,headers:{...options.headers,'Authorization':'Bearer '+driveToken}});
   if(res.status===401&&retry){
     const ok=await refreshDriveToken();
@@ -634,7 +694,6 @@ function rUpload(){
   const ds=v.shots.filter(s=>(clips[s.id]||[]).length>0).length;
   const onDrive=v.shots.reduce((a,s)=>a+(clips[s.id]||[]).filter(c=>c.driveId).length,0);
   document.getElementById('tp-upload').innerHTML=`
-    ${IS_STATIC_PAGES_HOST?`<div class="drive-banner show" style="background:rgba(239,159,39,0.12);border-color:rgba(239,159,39,0.35);color:#ffd58a">Live Pages mode: clip naming, planning, and downloads work here. Google Drive sync stays on the server-hosted build.</div>`:''}
     ${driveToken?`<div class="drive-banner show">✓ Google Drive connected — clips upload automatically to Sniperform_Shoot/${v.num}_${v.name.replace(/[^a-z0-9]/gi,'_')}/</div>`:''}
     <div class="slabel">Clip Upload — ${v.name}</div>
     <div class="stat-row">
