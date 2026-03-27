@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sniperform — Shoot Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --teal:#00c4b3;--teal-dim:rgba(0,196,179,0.1);--teal-border:rgba(0,196,179,0.25);
+  --charcoal:#1a2028;--surface:#212830;--surface2:#29333d;--surface3:#323f4b;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#dde4ea;--text-muted:#6e7f8d;--text-dim:#3d4f5e;
+  --red:#e24b4a;--amber:#ef9f27;--green:#1d9e75;
+  --radius:8px;--radius-lg:12px;
+}
+html,body{height:100%;overflow:hidden;background:var(--charcoal);color:var(--text);font-family:'Barlow',sans-serif;font-size:14px}
+.app{display:grid;grid-template-rows:54px 1fr;height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:12px;position:relative;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:12px}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--teal);letter-spacing:3px}
+.logo-sep{width:1px;height:22px;background:var(--border2)}
+.page-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.drive-status{display:flex;align-items:center;gap:7px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-dim);flex-shrink:0;transition:background 0.3s}
+.dot.on{background:var(--green)}
+.dot.connecting{background:var(--amber)}
+.drive-label{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted)}
+.btn{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;white-space:nowrap}
+.btn:hover{color:var(--text);background:var(--surface2)}
+.btn-teal{background:var(--teal);color:#000;border-color:var(--teal);font-weight:700}
+.btn-teal:hover{background:#00ddd0;color:#000;border-color:#00ddd0}
+.btn-google{background:#fff;color:#333;border-color:#ddd;display:flex;align-items:center;gap:6px}
+.btn-google:hover{background:#f5f5f5;color:#333}
+.google-icon{width:14px;height:14px}
+.main{display:grid;grid-template-columns:260px 1fr;overflow:hidden}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:14px 14px 10px;border-bottom:1px solid var(--border);font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted)}
+.vlist{flex:1;overflow-y:auto;padding:8px 8px 0;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.vcard{border-radius:var(--radius);border:1px solid var(--border);margin-bottom:6px;cursor:pointer;transition:all 0.15s}
+.vcard:hover{border-color:var(--teal-border)}
+.vcard.active{border-color:var(--teal);background:var(--teal-dim)}
+.vcard-top{padding:10px 12px;display:flex;align-items:center;gap:9px}
+.vnum{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--teal);min-width:26px;line-height:1}
+.vinfo{flex:1;min-width:0}
+.vname{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vtype{font-size:11px;color:var(--text-muted);margin-top:1px}
+.vprog{padding:0 12px 8px;display:flex;align-items:center;gap:7px}
+.pbar{flex:1;height:3px;background:rgba(255,255,255,0.06);border-radius:2px}
+.pfill{height:3px;background:var(--teal);border-radius:2px;transition:width 0.3s}
+.ppct{font-size:10px;color:var(--teal);font-family:'Barlow Condensed',sans-serif;min-width:26px;text-align:right}
+.sb-foot{padding:10px;border-top:1px solid var(--border)}
+.sb-stat{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);text-align:center;margin-bottom:6px}
+.overall-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin-bottom:8px}
+.overall-fill{height:3px;background:var(--teal);border-radius:2px;transition:width 0.4s}
+.export-all-btn{width:100%;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:8px;border-radius:var(--radius);border:1px solid var(--teal-border);background:var(--teal-dim);color:var(--teal);cursor:pointer;transition:all 0.15s}
+.export-all-btn:hover{background:var(--teal);color:#000}
+.content{display:flex;flex-direction:column;overflow:hidden}
+.ctabs{display:flex;gap:2px;padding:10px 18px 0;border-bottom:1px solid var(--border);background:var(--surface)}
+.ctab{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px;border-radius:6px 6px 0 0;border:none;background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s}
+.ctab.active{background:var(--charcoal);color:var(--teal)}
+.ctab:hover:not(.active){color:var(--text);background:rgba(255,255,255,0.03)}
+.cpanel{flex:1;overflow-y:auto;padding:18px;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.tpane{display:none}
+.tpane.active{display:block}
+.slabel{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.slabel::after{content:'';flex:1;height:1px;background:var(--teal-border)}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.vh{margin-bottom:18px}
+.vtitle-input{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--teal);letter-spacing:3px;background:transparent;border:none;border-bottom:1px solid transparent;width:100%;outline:none;transition:border-color 0.15s}
+.vtitle-input:focus{border-bottom-color:var(--teal-border)}
+.vmeta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mtag{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:3px 9px;border-radius:4px;background:rgba(255,255,255,0.04);color:var(--text-muted);border:1px solid var(--border)}
+.mtag.tl{background:var(--teal-dim);color:var(--teal);border-color:var(--teal-border)}
+.shot-list{display:flex;flex-direction:column;gap:7px}
+.sslot{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color 0.15s}
+.sslot:hover{border-color:var(--border2)}
+.sslot.clipped{border-color:var(--teal-border);background:rgba(0,196,179,0.04)}
+.sslot.dragover{border-color:var(--teal);border-style:dashed;background:rgba(0,196,179,0.06)}
+.shead{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer}
+.snum{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--text-dim);min-width:22px;line-height:1}
+.sslot.clipped .snum{color:var(--teal)}
+.sinfo{flex:1;min-width:0}
+.sname{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;color:var(--text)}
+.sdesc{font-size:11px;color:var(--text-muted);margin-top:1px;line-height:1.4}
+.sdur{font-family:'Barlow Condensed',sans-serif;font-size:10px;color:var(--text-dim);letter-spacing:0.5px;white-space:nowrap}
+.sicon{font-size:14px;margin-left:4px}
+.sbody{display:none;padding:0 12px 10px}
+.sbody.open{display:block}
+.clip-row{display:flex;align-items:center;gap:8px;background:var(--surface2);border-radius:6px;padding:7px 10px;margin-bottom:6px}
+.clip-icon{font-size:16px}
+.clip-info{flex:1;min-width:0}
+.clip-name{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;color:var(--teal);letter-spacing:0.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clip-meta{font-size:10px;color:var(--text-muted);margin-top:1px}
+.clip-drive{font-size:10px;color:var(--green);margin-top:1px}
+.take-tag{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s}
+.take-tag.best{background:rgba(0,196,179,0.15);color:var(--teal);border-color:var(--teal-border)}
+.rm-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px}
+.rm-btn:hover{color:var(--red);background:rgba(226,75,74,0.1)}
+.upbar-wrap{height:3px;background:rgba(255,255,255,0.04);border-radius:2px;margin-bottom:7px}
+.upbar{height:3px;background:var(--teal);border-radius:2px;width:0;transition:width 0.3s}
+.dz{border:1.5px dashed var(--border2);border-radius:var(--radius);padding:14px;text-align:center;cursor:pointer;transition:all 0.15s;margin-bottom:8px}
+.dz:hover{border-color:var(--teal-border);background:var(--teal-dim)}
+.dz-text{font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted)}
+.dz input{display:none}
+.inspo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px;margin-bottom:14px}
+.inspo-card{background:var(--surface);border:1.5px dashed var(--border2);border-radius:var(--radius);aspect-ratio:9/16;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden}
+.inspo-card:hover{border-color:var(--teal-border);background:var(--teal-dim)}
+.inspo-card.filled{border-style:solid;border-color:var(--border2)}
+.inspo-card img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:6px}
+.inspo-card input{display:none}
+.iplus{font-size:18px;color:var(--text-dim)}
+.ilabel{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-top:4px}
+.ioverlay{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.8));padding:6px;display:none;border-radius:0 0 6px 6px}
+.inspo-card.filled:hover .ioverlay{display:block}
+.icap{font-size:9px;color:rgba(255,255,255,0.7);font-family:'Barlow Condensed',sans-serif}
+.irm{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);border:none;color:white;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;display:none;align-items:center;justify-content:center}
+.inspo-card.filled:hover .irm{display:flex}
+.rcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+.rlabel{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:7px}
+.rtextarea{width:100%;background:var(--charcoal);border:1px solid var(--border);border-radius:6px;padding:9px 10px;color:var(--text);font-family:'Barlow',sans-serif;font-size:12px;line-height:1.6;resize:vertical;min-height:72px;outline:none;transition:border-color 0.15s}
+.rtextarea:focus{border-color:var(--teal-border)}
+.rtextarea::placeholder{color:var(--text-dim)}
+.script-block{background:var(--charcoal);border-left:3px solid var(--teal);border-radius:0 var(--radius) var(--radius) 0;padding:10px 12px;margin-bottom:10px}
+.sblabel{font-family:'Barlow Condensed',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--teal);margin-bottom:5px}
+.sbedit{width:100%;background:transparent;border:none;color:var(--text);font-family:'Barlow',sans-serif;font-size:12px;line-height:1.6;font-style:italic;resize:vertical;outline:none;min-height:36px}
+.sbedit::placeholder{color:var(--text-dim);font-style:normal}
+.add-shot-btn{width:100%;padding:9px;border-radius:var(--radius);border:1px dashed var(--border2);background:transparent;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.15s;margin-top:7px}
+.add-shot-btn:hover{border-color:var(--teal-border);color:var(--teal);background:var(--teal-dim)}
+.stat-row{display:flex;gap:10px;margin-bottom:18px}
+.stat-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center}
+.stat-val{font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--teal);line-height:1}
+.stat-lbl{font-family:'Barlow Condensed',sans-serif;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-top:2px}
+.drive-banner{background:rgba(29,158,117,0.08);border:1px solid rgba(29,158,117,0.25);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--green);font-family:'Barlow Condensed',sans-serif;letter-spacing:0.5px;display:none}
+.drive-banner.show{display:block}
+.moverlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:500;display:none;align-items:center;justify-content:center}
+.moverlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:22px;width:460px;max-width:90vw}
+.mtitle{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--teal);letter-spacing:2px;margin-bottom:14px}
+.minput{width:100%;background:var(--charcoal);border:1px solid var(--border2);border-radius:6px;padding:9px 11px;color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;outline:none;transition:border-color 0.15s;margin-bottom:8px}
+.minput:focus{border-color:var(--teal-border)}
+.mrow{display:flex;gap:8px;margin-top:12px}
+.notif{position:fixed;bottom:18px;right:18px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:9px 14px;font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:0.5px;color:var(--text);z-index:9999;transform:translateY(70px);opacity:0;transition:all 0.25s;max-width:320px}
+.notif.show{transform:translateY(0);opacity:1}
+.notif.ok{border-color:rgba(29,158,117,0.4);color:var(--green)}
+.notif.err{border-color:rgba(226,75,74,0.4);color:var(--red)}
+.notif.info{border-color:var(--teal-border);color:var(--teal)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">SNIPERFORM</div>
+      <div class="logo-sep"></div>
+      <div class="page-label">Shoot Planner</div>
+    </div>
+    <div class="topbar-right">
+      <div class="drive-status">
+        <div class="dot" id="dot"></div>
+        <div class="drive-label" id="drive-label">Drive: Not Connected</div>
+      </div>
+      <button class="btn btn-google" id="connect-btn" onclick="connectDrive()">
+        <svg class="google-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Connect Google Drive
+      </button>
+      <button class="btn" onclick="exportPlan()">Export Plan</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sb-head">4 Videos — Tomorrow's Shoot</div>
+      <div class="vlist" id="vlist"></div>
+      <div class="sb-foot">
+        <div class="sb-stat" id="sb-stat">0 of 0 clips uploaded</div>
+        <div class="overall-bar"><div class="overall-fill" id="ofill" style="width:0%"></div></div>
+        <button class="export-all-btn" onclick="dlNaming()">↓ File Naming Guide</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="ctabs">
+        <button class="ctab active" onclick="swTab('plan')">Plan & Shots</button>
+        <button class="ctab" onclick="swTab('inspo')">Inspo & Research</button>
+        <button class="ctab" onclick="swTab('script')">Script & Copy</button>
+        <button class="ctab" onclick="swTab('upload')">Upload Clips</button>
+      </div>
+      <div class="cpanel">
+        <div class="tpane active" id="tp-plan"></div>
+        <div class="tpane" id="tp-inspo"></div>
+        <div class="tpane" id="tp-script"></div>
+        <div class="tpane" id="tp-upload"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="moverlay" id="add-modal">
+  <div class="modal">
+    <div class="mtitle">Add Shot</div>
+    <input class="minput" id="sn-input" placeholder="Shot name">
+    <input class="minput" id="sd-input" placeholder="Director's note / description">
+    <input class="minput" id="su-input" placeholder="Duration / frame rate">
+    <div class="mrow">
+      <button class="btn btn-teal" onclick="confirmShot()" style="flex:1">Add Shot</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+const VIDS=[
+  {id:'v1',num:'01',name:'Meta Ad — Conversion',type:'Performance / Paid',dur:'15–30 sec',pri:'CRITICAL',
+   shots:[
+     {id:'v1s1',n:'Spirit Level Hook',d:'ECU of spirit level on barbell. Bubble centred. Rack focus reveal. 120fps for slo-mo.',t:'0–3 sec · 120fps',clips:[],best:null},
+     {id:'v1s2',n:'Problem — Bar Imbalance',d:'Talent lifting without grips. Subtle tip visible. Wide or overhead angle.',t:'3–8 sec · 3 takes',clips:[],best:null},
+     {id:'v1s3',n:'Install & Level',d:'Slide grip on bar. Bubble centres. Show the moment of alignment clearly.',t:'8–14 sec',clips:[],best:null},
+     {id:'v1s4',n:'Full Lift — Side Angle',d:'Complete rep with grips. Side profile. Strong, controlled movement.',t:'14–22 sec · 60fps',clips:[],best:null},
+     {id:'v1s5',n:'Forearm / Muscle ECU',d:'Close-up of forearms and hands gripping during the lift. Skin texture, grip detail.',t:'B-roll · 60fps',clips:[],best:null},
+     {id:'v1s6',n:'CTA Static Product',d:'Both grips on barbell, clean frame, minimal background. Text overlay goes here.',t:'Final 5 sec',clips:[],best:null},
+   ],
+   inspo:[null,null,null,null],research:{comp:'',obj:'',firefly:''},
+   scripts:{hook:"Your bar is off. You just can't see it.",body:"[0–3s] HOOK: ECU spirit level — no words, visual does the work.\n[3–8s] PROBLEM: talent lifts off-balance, bar tips slightly.\n[8–20s] SOLUTION: install grips, bubble centres, lift — perfect form.\n[20–30s] CTA: product on bar, '$59.95 AUD · Shop Now' overlay.",cta:"LevelUp Performance Grips — $59.95 AUD · Free Shipping",overlay:"Variant A: \"Your bar is off. You just can't see it.\"\nVariant B: \"30% more muscle. One grip change.\"\nVariant C: \"The grip Fat Gripz forgot to build.\""}
+  },
+  {id:'v2',num:'02',name:'Hero Product Film',type:'Brand / Cinematic',dur:'30–60 sec',pri:'HIGH',
+   shots:[
+     {id:'v2s1',n:'Overhead Orbit',d:'Product on flat surface. Slow 360° pan around grips. Studio-style, controlled.',t:'5 sec · tripod',clips:[],best:null},
+     {id:'v2s2',n:'SF Logo ECU',d:'Extreme close-up of the SF logo embossed on grip surface. Shallow DOF, tack sharp.',t:'3 sec',clips:[],best:null},
+     {id:'v2s3',n:'Spirit Level Centres',d:'Manually tilt grip slightly off, let bubble settle to centre. Very close, backlit.',t:'4 sec · 60fps',clips:[],best:null},
+     {id:'v2s4',n:'Grip Slides On Bar',d:'Side profile. Grip sliding smoothly onto barbell. Slow, deliberate, tool-free.',t:'3 sec',clips:[],best:null},
+     {id:'v2s5',n:'Talent Approach — Low',d:'Low angle. Talent walks toward bar. Confident, no smile. Dark training kit.',t:'4 sec',clips:[],best:null},
+     {id:'v2s6',n:'Hands Grip Bar — Below',d:'Camera below the bar. Hands wrap grips. Knuckles, tension, intent visible.',t:'3 sec',clips:[],best:null},
+     {id:'v2s7',n:'Full Compound Lift',d:'One compound movement. Side angle. Perfect form. 60fps.',t:'6 sec · 60fps',clips:[],best:null},
+     {id:'v2s8',n:'End Frame — Direct',d:'Talent looks directly at lens. No smile. Grip in hand. Quiet confidence.',t:'3 sec',clips:[],best:null},
+   ],
+   inspo:[null,null,null,null],research:{comp:'',obj:'',firefly:''},
+   scripts:{hook:"Pure Precision.",body:"[0–5s] PRODUCT: orbit, ECU logo, spirit level centring.\n[5–15s] INSTALL: grip slides on bar, both grips on barbell, symmetrical frame.\n[15–30s] LIFT: talent approaches, grips bar, executes lift. Spirit level stays centred.\n[30s] END FRAME: talent holds product, looks at camera. Logo lockup.\n\nMusic: cinematic, minimal, dark. No hype.",cta:"sniperform.com.au",overlay:"LEVEL UP PERFORMANCE GRIPS\nPURE PRECISION\nSNIPERFORM.COM.AU"}
+  },
+  {id:'v3',num:'03',name:'Talking Head',type:'Trust / Testimonial',dur:'20–30 sec',pri:'HIGH',
+   shots:[
+     {id:'v3s1',n:'Full Script — Take 1',d:'Eye level. Talent holds grip. Barbell in bg, soft focus. Look directly at lens.',t:'Full take',clips:[],best:null},
+     {id:'v3s2',n:'Full Script — Take 2',d:'Same setup. More natural delivery. Slight variation in rhythm.',t:'Full take',clips:[],best:null},
+     {id:'v3s3',n:'Full Script — Take 3',d:'Best of 3 to edit. Most natural, least scripted-sounding wins.',t:'Full take',clips:[],best:null},
+     {id:'v3s4',n:'Spirit Level Point',d:'Isolated moment — talent points to spirit level window while delivering that line.',t:'Cutaway',clips:[],best:null},
+     {id:'v3s5',n:'Short Hook — Take 1',d:'"Fat Gripz don\'t have a spirit level. These do." 10-sec Reels version.',t:'10 sec',clips:[],best:null},
+     {id:'v3s6',n:'Short Hook — Take 2',d:'Same line, quieter and more direct energy.',t:'10 sec',clips:[],best:null},
+   ],
+   inspo:[null,null,null,null],research:{comp:'',obj:'',firefly:''},
+   scripts:{hook:"\"Most people have no idea their bar is uneven. I didn't, until I used these.\"",body:"FULL SCRIPT:\n\n[0–5s] \"Most people have no idea their bar is uneven. I didn't, until I used these.\"\n\n[5–12s] \"There's a built-in spirit level right here — you can see exactly when your grip is balanced during every single rep.\" (POINT TO LEVEL)\n\n[12–20s] \"The diameter is scientifically engineered to activate more muscle. You genuinely feel the difference the first set.\"\n\n[20–25s] \"This is the upgrade your training's been missing. Fifty-nine ninety-five. That's it.\"\n\nDELIVERY: confident, not loud. Say price without apology.",cta:"Shop at sniperform.com.au — $59.95 AUD",overlay:"SHORT:\n\"Fat Gripz don't have a spirit level. These do.\nThat's the difference between training and precision training.\"\n\nBENEFIT:\n\"Two things: a spirit level so every rep is balanced, and a grip diameter that activates 30% more muscle. That's the LevelUp Grips.\""}
+  },
+  {id:'v4',num:'04',name:'How-To / Instructions',type:'Education / Objections',dur:'45–60 sec',pri:'MEDIUM',
+   shots:[
+     {id:'v4s1',n:'Unbox — Remove Grips',d:'Hands remove both grips from packaging. Hold up to camera side by side.',t:'Step 1',clips:[],best:null},
+     {id:'v4s2',n:'Identify Spirit Level Grip',d:'Point to the spirit level grip specifically. Where the level sits.',t:'Step 1b',clips:[],best:null},
+     {id:'v4s3',n:'Install — Grip on Bar',d:'Side profile close-up. Grip slides onto barbell. Tool-free, quick.',t:'Step 2 · 60fps',clips:[],best:null},
+     {id:'v4s4',n:'Spirit Level POV',d:"Talent's POV looking down at grips. Bubble starts off-centre, adjusts, centres. KEY SHOT.",t:'Step 3',clips:[],best:null},
+     {id:'v4s5',n:'Full Rep With Grips',d:'Complete a rep. Spirit level stays centred throughout the movement.',t:'Step 4',clips:[],best:null},
+     {id:'v4s6',n:'Remove From Bar',d:'Show grips come off easily. Reassures buyer it is not permanent.',t:'Bonus',clips:[],best:null},
+   ],
+   inspo:[null,null,null,null],research:{comp:'',obj:'',firefly:''},
+   scripts:{hook:"\"Install in seconds. Know your balance instantly.\"",body:"STEP-BY-STEP VO / TEXT OVERLAYS:\n\nStep 1: \"Two grips. One with the precision level.\"\nStep 2: \"Slides on any standard barbell. No tools.\"\nStep 3: \"Lock in. Watch the bubble. That's your alignment, live.\"\nStep 4: \"Every rep. Perfectly balanced.\"\n\nNOTE: Text overlays only — no VO required. Works with music under.",cta:"LevelUp Performance Grips — sniperform.com.au",overlay:"FORMAT: Numbered step overlays in CapCut\nFont: Bebas Neue or Barlow Condensed\nColour: Teal #00c4b3 on dark background"}
+  }
+];
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let AV=0,AT='plan',addingFor=null;
+let driveToken=null,driveEmail=null,driveRefresh=null;
+let rootFolderId=null;
+const videoFolderIds={};
+const clips={};
+const vcodes={v1:'META',v2:'HERO',v3:'TH',v4:'HOW'};
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+function init(){
+  // Check if returning from OAuth
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  const params=new URLSearchParams(window.location.search);
+  if(hash.get('access_token')){
+    driveToken=hash.get('access_token');
+    driveRefresh=hash.get('refresh_token')||null;
+    driveEmail=hash.get('email')||'Google Drive';
+    localStorage.setItem('sf_drive_token',driveToken);
+    localStorage.setItem('sf_drive_refresh',driveRefresh||'');
+    localStorage.setItem('sf_drive_email',driveEmail);
+    window.history.replaceState({},'','/');
+    onDriveConnected();
+  } else if(params.get('connected')==='true'){
+    // Token already saved
+    driveToken=localStorage.getItem('sf_drive_token');
+    driveRefresh=localStorage.getItem('sf_drive_refresh');
+    driveEmail=localStorage.getItem('sf_drive_email')||'Google Drive';
+    if(driveToken) onDriveConnected();
+    window.history.replaceState({},'','/');
+  } else {
+    // Check localStorage
+    const saved=localStorage.getItem('sf_drive_token');
+    if(saved){
+      driveToken=saved;
+      driveRefresh=localStorage.getItem('sf_drive_refresh');
+      driveEmail=localStorage.getItem('sf_drive_email')||'Google Drive';
+      onDriveConnected();
+    }
+  }
+  renderSidebar();renderAll();
+}
+
+// ── DRIVE AUTH ────────────────────────────────────────────────────────────────
+async function connectDrive(){
+  try{
+    notif('Opening Google login…','info');
+    const res=await fetch('/auth/url');
+    const {url}=await res.json();
+    window.location.href=url;
+  }catch(e){
+    notif('Error: '+e.message,'err');
+  }
+}
+
+function onDriveConnected(){
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('drive-label').textContent='Drive: '+driveEmail;
+  document.getElementById('connect-btn').textContent='✓ Connected';
+  document.getElementById('connect-btn').style.opacity='0.6';
+  document.getElementById('connect-btn').disabled=true;
+  notif('✓ Google Drive connected','ok');
+  ensureRootFolder();
+}
+
+function disconnectDrive(){
+  driveToken=driveRefresh=driveEmail=null;
+  rootFolderId=null;
+  localStorage.removeItem('sf_drive_token');
+  localStorage.removeItem('sf_drive_refresh');
+  localStorage.removeItem('sf_drive_email');
+  document.getElementById('dot').classList.remove('on');
+  document.getElementById('drive-label').textContent='Drive: Not Connected';
+  document.getElementById('connect-btn').textContent='Connect Google Drive';
+  document.getElementById('connect-btn').style.opacity='1';
+  document.getElementById('connect-btn').disabled=false;
+}
+
+async function refreshDriveToken(){
+  if(!driveRefresh)return false;
+  try{
+    const res=await fetch('/api/refresh-token',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({refresh_token:driveRefresh})
+    });
+    const data=await res.json();
+    if(data.access_token){
+      driveToken=data.access_token;
+      localStorage.setItem('sf_drive_token',driveToken);
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+async function driveRequest(url,options={},retry=true){
+  const res=await fetch(url,{...options,headers:{...options.headers,'Authorization':'Bearer '+driveToken}});
+  if(res.status===401&&retry){
+    const ok=await refreshDriveToken();
+    if(ok)return driveRequest(url,options,false);
+    disconnectDrive();
+    notif('Drive session expired — please reconnect','err');
+    return null;
+  }
+  return res;
+}
+
+// ── DRIVE FOLDERS ─────────────────────────────────────────────────────────────
+async function ensureRootFolder(){
+  if(rootFolderId)return rootFolderId;
+  try{
+    // Search for existing
+    const searchRes=await driveRequest(`https://www.googleapis.com/drive/v3/files?q=name='Sniperform_Shoot' and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id,name)`);
+    if(!searchRes)return null;
+    const searchData=await searchRes.json();
+    if(searchData.files&&searchData.files.length>0){
+      rootFolderId=searchData.files[0].id;
+      return rootFolderId;
+    }
+    // Create
+    const createRes=await driveRequest('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:'Sniperform_Shoot',mimeType:'application/vnd.google-apps.folder'})
+    });
+    if(!createRes)return null;
+    const folder=await createRes.json();
+    rootFolderId=folder.id;
+    notif('✓ Created Sniperform_Shoot folder in Drive','ok');
+    return rootFolderId;
+  }catch(e){notif('Folder error: '+e.message,'err');return null}
+}
+
+async function ensureVideoFolder(vid){
+  if(videoFolderIds[vid])return videoFolderIds[vid];
+  const root=await ensureRootFolder();
+  if(!root)return null;
+  const v=VIDS.find(v=>v.id===vid);
+  const name=v?`${v.num}_${v.name.replace(/[^a-z0-9]/gi,'_')}`:'misc';
+  try{
+    const searchRes=await driveRequest(`https://www.googleapis.com/drive/v3/files?q=name='${name}' and '${root}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false&fields=files(id)`);
+    if(!searchRes)return null;
+    const sd=await searchRes.json();
+    if(sd.files&&sd.files.length>0){videoFolderIds[vid]=sd.files[0].id;return videoFolderIds[vid]}
+    const cr=await driveRequest('https://www.googleapis.com/drive/v3/files',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name,mimeType:'application/vnd.google-apps.folder',parents:[root]})
+    });
+    if(!cr)return null;
+    const f=await cr.json();
+    videoFolderIds[vid]=f.id;
+    return f.id;
+  }catch(e){return null}
+}
+
+// ── DRIVE UPLOAD ──────────────────────────────────────────────────────────────
+async function uploadToDrive(shotId,ci){
+  if(!driveToken){notif('Connect Google Drive first','err');return}
+  const cl=clips[shotId];const c=cl?.[ci];if(!c)return;
+  const v=findV(shotId);
+  const folderId=await ensureVideoFolder(v?.id||'misc');
+  if(!folderId){notif('Could not find/create Drive folder','err');return}
+
+  notif(`Uploading ${c.name} to Drive…`,'info');
+  const bar=document.getElementById('upbar-'+shotId);
+  if(bar)bar.style.width='20%';
+
+  try{
+    const meta={name:c.name,parents:[folderId]};
+    const form=new FormData();
+    form.append('metadata',new Blob([JSON.stringify(meta)],{type:'application/json'}));
+    form.append('file',c.file);
+
+    const res=await driveRequest('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',{
+      method:'POST',body:form
+    });
+    if(!res)return;
+    if(res.ok){
+      const d=await res.json();
+      c.driveId=d.id;c.driveLink=d.webViewLink;
+      if(bar)bar.style.width='100%';
+      notif(`✓ Uploaded: ${c.name}`,'ok');
+      setTimeout(()=>{if(bar)bar.style.width='0%'},2000);
+      renderAll();
+    } else {
+      const err=await res.json();
+      notif('Upload failed: '+(err.error?.message||'unknown'),'err');
+      if(bar)bar.style.width='0%';
+    }
+  }catch(e){notif('Upload error: '+e.message,'err');if(bar)bar.style.width='0%'}
+}
+
+async function uploadAllForVideo(vi){
+  const v=VIDS[vi];
+  for(const s of v.shots){
+    const cl=clips[s.id]||[];
+    for(let i=0;i<cl.length;i++){
+      if(!cl[i].driveId) await uploadToDrive(s.id,i);
+    }
+  }
+  notif(`All clips for ${v.name} pushed to Drive`,'ok');
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────────────────
+function renderSidebar(){
+  document.getElementById('vlist').innerHTML=VIDS.map((v,i)=>{
+    const t=v.shots.length,d=v.shots.filter(s=>(clips[s.id]||[]).length>0).length;
+    const p=t?Math.round(d/t*100):0;
+    return `<div class="vcard${i===AV?' active':''}" onclick="selV(${i})">
+      <div class="vcard-top"><div class="vnum">${v.num}</div><div class="vinfo"><div class="vname">${v.name}</div><div class="vtype">${v.type}</div></div></div>
+      <div class="vprog"><div class="pbar"><div class="pfill" style="width:${p}%"></div></div><div class="ppct">${p}%</div></div>
+    </div>`;
+  }).join('');
+  updOverall();
+}
+function updOverall(){
+  let t=0,d=0;
+  VIDS.forEach(v=>{t+=v.shots.length;d+=v.shots.filter(s=>(clips[s.id]||[]).length>0).length});
+  const p=t?Math.round(d/t*100):0;
+  document.getElementById('ofill').style.width=p+'%';
+  document.getElementById('sb-stat').textContent=`${d} of ${t} clips uploaded`;
+}
+function selV(i){AV=i;renderSidebar();renderAll()}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function swTab(tab){
+  AT=tab;
+  document.querySelectorAll('.ctab').forEach((b,i)=>b.classList.toggle('active',['plan','inspo','script','upload'][i]===tab));
+  document.querySelectorAll('.tpane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tp-'+tab).classList.add('active');
+  renderAll();
+}
+function renderAll(){rPlan();rInspo();rScript();rUpload()}
+
+// ── PLAN ──────────────────────────────────────────────────────────────────────
+function rPlan(){
+  const v=VIDS[AV];
+  document.getElementById('tp-plan').innerHTML=`
+    <div class="vh">
+      <input class="vtitle-input" value="${v.name}" onchange="VIDS[${AV}].name=this.value;renderSidebar()">
+      <div class="vmeta">
+        <span class="mtag tl">${v.num}</span><span class="mtag">${v.type}</span><span class="mtag">${v.dur}</span>
+        <span class="mtag" style="color:${v.pri==='CRITICAL'?'var(--red)':v.pri==='HIGH'?'var(--amber)':'var(--text-muted)'};border-color:${v.pri==='CRITICAL'?'rgba(226,75,74,0.3)':v.pri==='HIGH'?'rgba(239,159,39,0.3)':'var(--border)'}">${v.pri}</span>
+      </div>
+    </div>
+    <div class="slabel">${v.shots.length} Planned Shots</div>
+    <div class="shot-list">${v.shots.map((s,si)=>shotHTML(s,si,'plan')).join('')}</div>
+    <button class="add-shot-btn" onclick="openAddShot('${v.id}')">+ Add Shot</button>`;
+}
+
+function shotHTML(s,si,mode){
+  const cl=clips[s.id]||[];const has=cl.length>0;
+  const bodyId=`sb-${mode}-${s.id}`;
+  return `<div class="sslot${has?' clipped':''}" ondragover="dzOver(event,'${s.id}')" ondragleave="dzLeave('${s.id}')" ondrop="dzDrop(event,'${s.id}')">
+    <div class="shead" onclick="toggleBody('${bodyId}')">
+      <div class="snum">${String(si+1).padStart(2,'0')}</div>
+      <div class="sinfo"><div class="sname">${s.n}</div><div class="sdesc">${s.d}</div></div>
+      <div class="sdur">${s.t}</div>
+      <div class="sicon">${has?'✅':'⬜'}</div>
+    </div>
+    <div class="sbody${mode==='upload'?' open':''}" id="${bodyId}">
+      ${cl.map((c,ci)=>`
+        <div class="clip-row">
+          <div class="clip-icon">🎬</div>
+          <div class="clip-info">
+            <div class="clip-name">${c.name}</div>
+            <div class="clip-meta">${fmtSz(c.size)} · Take ${ci+1}${s.best===ci?' · ⭐ BEST':''}</div>
+            ${c.driveLink?`<div class="clip-drive"><a href="${c.driveLink}" target="_blank" style="color:var(--green);text-decoration:none">✓ In Google Drive ↗</a></div>`:''}
+          </div>
+          <button class="take-tag${s.best===ci?' best':''}" onclick="markBest('${s.id}',${ci})">★</button>
+          ${driveToken&&!c.driveId?`<button class="btn" style="font-size:10px;padding:3px 8px" onclick="uploadToDrive('${s.id}',${ci})">↑ Drive</button>`:''}
+          <button class="rm-btn" onclick="rmClip('${s.id}',${ci})">✕</button>
+        </div>`).join('')}
+      <div class="upbar-wrap"><div class="upbar" id="upbar-${s.id}"></div></div>
+      <div class="dz">
+        <label style="cursor:pointer;display:block">
+          <div class="dz-text">${has?'+ Add Another Take':'Drop clip here or tap to upload'}</div>
+          <input type="file" accept="video/*" multiple onchange="onFile(event,'${s.id}')">
+        </label>
+      </div>
+      ${has?`<button class="btn btn-teal" onclick="dlClips('${s.id}')" style="width:100%;margin-top:4px;text-align:center">↓ Download ${cl.length>1?'All Takes':'Clip'}</button>`:''}
+    </div>
+  </div>`;
+}
+
+function toggleBody(id){const el=document.getElementById(id);if(el)el.classList.toggle('open')}
+
+// ── INSPO ─────────────────────────────────────────────────────────────────────
+function rInspo(){
+  const v=VIDS[AV];
+  document.getElementById('tp-inspo').innerHTML=`
+    <div class="slabel">Inspiration Board — ${v.name}</div>
+    <div class="inspo-grid">
+      ${v.inspo.map((img,i)=>img?
+        `<div class="inspo-card filled">
+          <img src="${img.src}" alt=""><div class="ioverlay"><div class="icap">${img.cap||''}</div></div>
+          <button class="irm" onclick="rmInspo(${i})">✕</button>
+        </div>`:
+        `<div class="inspo-card" onclick="document.getElementById('if-${v.id}-${i}').click()">
+          <div class="iplus">+</div><div class="ilabel">Add Inspo</div>
+          <input type="file" id="if-${v.id}-${i}" accept="image/*,video/*" onchange="addInspo(event,${i})">
+        </div>`
+      ).join('')}
+      <div class="inspo-card" onclick="VIDS[${AV}].inspo.push(null);rInspo()" style="border-color:var(--teal-border)">
+        <div class="iplus" style="color:var(--teal)">+</div><div class="ilabel" style="color:var(--teal)">New Slot</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="slabel">Market Research</div>
+    <div class="rcard"><div class="rlabel">Competitor Analysis</div>
+      <textarea class="rtextarea" placeholder="What are competitors doing on Meta? What gap do we own?" onchange="VIDS[${AV}].research.comp=this.value">${v.research.comp}</textarea></div>
+    <div class="rcard"><div class="rlabel">Customer Questions & Objections</div>
+      <textarea class="rtextarea" rows="5" placeholder="Paste real Facebook comments, DMs, Reddit questions…" onchange="VIDS[${AV}].research.obj=this.value">${v.research.obj}</textarea></div>
+    <div class="rcard"><div class="rlabel">Firefly / AI Prompts for This Video</div>
+      <textarea class="rtextarea" rows="4" placeholder="Adobe Firefly prompts for cutaway visuals or backgrounds…" onchange="VIDS[${AV}].research.firefly=this.value">${v.research.firefly}</textarea></div>`;
+}
+function addInspo(evt,i){const f=evt.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{VIDS[AV].inspo[i]={src:e.target.result,cap:f.name};rInspo()};r.readAsDataURL(f)}
+function rmInspo(i){VIDS[AV].inspo[i]=null;rInspo()}
+
+// ── SCRIPT ────────────────────────────────────────────────────────────────────
+function rScript(){
+  const v=VIDS[AV];
+  document.getElementById('tp-script').innerHTML=`
+    <div class="slabel">Script & Copy — ${v.name}</div>
+    <div class="script-block"><div class="sblabel">Hook / Opening Line (0–3 sec)</div>
+      <textarea class="sbedit" onchange="VIDS[${AV}].scripts.hook=this.value">${v.scripts.hook}</textarea></div>
+    <div class="script-block"><div class="sblabel">Full Shot-by-Shot Script</div>
+      <textarea class="sbedit" style="min-height:130px" onchange="VIDS[${AV}].scripts.body=this.value">${v.scripts.body}</textarea></div>
+    <div class="script-block"><div class="sblabel">CTA Copy</div>
+      <textarea class="sbedit" onchange="VIDS[${AV}].scripts.cta=this.value">${v.scripts.cta}</textarea></div>
+    <div class="script-block"><div class="sblabel">Text Overlays / CapCut Lines</div>
+      <textarea class="sbedit" style="min-height:90px" onchange="VIDS[${AV}].scripts.overlay=this.value">${v.scripts.overlay}</textarea></div>`;
+}
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────────
+function rUpload(){
+  const v=VIDS[AV];
+  const tc=v.shots.reduce((a,s)=>a+(clips[s.id]||[]).length,0);
+  const ds=v.shots.filter(s=>(clips[s.id]||[]).length>0).length;
+  const onDrive=v.shots.reduce((a,s)=>a+(clips[s.id]||[]).filter(c=>c.driveId).length,0);
+  document.getElementById('tp-upload').innerHTML=`
+    ${driveToken?`<div class="drive-banner show">✓ Google Drive connected — clips upload automatically to Sniperform_Shoot/${v.num}_${v.name.replace(/[^a-z0-9]/gi,'_')}/</div>`:''}
+    <div class="slabel">Clip Upload — ${v.name}</div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="stat-val">${ds}</div><div class="stat-lbl">Shots Covered</div></div>
+      <div class="stat-box"><div class="stat-val">${tc}</div><div class="stat-lbl">Total Clips</div></div>
+      <div class="stat-box"><div class="stat-val">${onDrive}</div><div class="stat-lbl">On Drive</div></div>
+    </div>
+    <div class="shot-list">${v.shots.map((s,si)=>shotHTML(s,si,'upload')).join('')}</div>
+    ${tc>0?`<div class="divider"></div><div style="display:flex;gap:8px">
+      <button class="btn btn-teal" onclick="dlAll(${AV})" style="flex:1">↓ Download All ${tc} Clips</button>
+      ${driveToken?`<button class="btn btn-teal" onclick="uploadAllForVideo(${AV})" style="flex:1">↑ Push All to Drive</button>`:''}
+    </div>`:''}`;
+}
+
+// ── FILES ─────────────────────────────────────────────────────────────────────
+function onFile(evt,sid){Array.from(evt.target.files).forEach(f=>addClip(sid,f))}
+function dzOver(evt,sid){evt.preventDefault();evt.currentTarget.classList.add('dragover')}
+function dzLeave(sid){document.querySelectorAll('.dragover').forEach(el=>el.classList.remove('dragover'))}
+function dzDrop(evt,sid){evt.preventDefault();dzLeave(sid);Array.from(evt.dataTransfer.files).filter(f=>f.type.startsWith('video/')).forEach(f=>addClip(sid,f))}
+
+function addClip(sid,file){
+  const shot=findShot(sid),v=findV(sid);if(!shot)return;
+  const ti=(clips[sid]||[]).length+1;
+  const date=new Date().toISOString().slice(2,10).replace(/-/g,'');
+  const slug=shot.n.replace(/[^a-z0-9]/gi,'_').toLowerCase().slice(0,20);
+  const name=`SF_${vcodes[v?.id]||'SF'}_${slug}_T${ti}_${date}.mp4`;
+  if(!clips[sid])clips[sid]=[];
+  clips[sid].push({file,name,size:file.size,driveId:null,driveLink:null});
+  notif(`✓ ${name}`,'ok');
+  renderSidebar();renderAll();
+  if(driveToken)uploadToDrive(sid,clips[sid].length-1);
+}
+
+function findShot(sid){for(const v of VIDS){const s=v.shots.find(s=>s.id===sid);if(s)return s}return null}
+function findV(sid){return VIDS.find(v=>v.shots.some(s=>s.id===sid))}
+function markBest(sid,ci){const s=findShot(sid);if(s){s.best=ci;renderAll()}}
+function rmClip(sid,ci){if(clips[sid]){clips[sid].splice(ci,1);if(!clips[sid].length)delete clips[sid]}renderSidebar();renderAll()}
+function fmtSz(b){if(!b)return'?';const m=b/1048576;return m>1?m.toFixed(1)+'MB':(b/1024).toFixed(0)+'KB'}
+function dlClips(sid){(clips[sid]||[]).forEach(c=>{const u=URL.createObjectURL(c.file),a=document.createElement('a');a.href=u;a.download=c.name;a.click();URL.revokeObjectURL(u)})}
+function dlAll(vi){VIDS[vi].shots.forEach(s=>dlClips(s.id));notif('Downloading all clips','info')}
+
+// ── SHOT MODAL ────────────────────────────────────────────────────────────────
+function openAddShot(vid){addingFor=vid;['sn-input','sd-input','su-input'].forEach(id=>document.getElementById(id).value='');document.getElementById('add-modal').classList.add('open');setTimeout(()=>document.getElementById('sn-input').focus(),80)}
+function confirmShot(){
+  const n=document.getElementById('sn-input').value.trim();if(!n){notif('Enter shot name','err');return}
+  const v=VIDS.find(v=>v.id===addingFor);if(!v)return;
+  v.shots.push({id:addingFor+'s'+Date.now(),n,d:document.getElementById('sd-input').value.trim(),t:document.getElementById('su-input').value.trim(),clips:[],best:null});
+  closeModal();renderSidebar();renderAll();notif('Shot added: '+n,'ok');
+}
+function closeModal(){document.getElementById('add-modal').classList.remove('open')}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+function exportPlan(){
+  const lines=['SNIPERFORM — SHOOT PLAN EXPORT',new Date().toLocaleDateString(),'='.repeat(50),''];
+  VIDS.forEach(v=>{
+    lines.push(`VIDEO ${v.num}: ${v.name}`,'Type: '+v.type+' | Duration: '+v.dur,'SHOTS:');
+    v.shots.forEach((s,i)=>{
+      const cl=clips[s.id]||[];
+      lines.push(`  ${i+1}. ${s.n} [${cl.length} clips]`,`     ${s.d}`);
+      cl.forEach((c,ci)=>lines.push(`     → ${c.name}${s.best===ci?' ★BEST':''}${c.driveLink?' (Drive: '+c.driveLink+')':''}`));
+    });
+    lines.push('SCRIPT:',v.scripts.body,'='.repeat(50),'');
+  });
+  dl(lines.join('\n'),'Sniperform_ShootPlan.txt','text/plain');
+}
+function dlNaming(){
+  const lines=['SNIPERFORM — FILE NAMING GUIDE','='.repeat(50),'','FORMAT: SF_[VIDEO]_[SHOT]_[TAKE]_[DATE].mp4','','VIDEO CODES:','  META = Video 1 Meta Ad','  HERO = Video 2 Hero Film','  TH   = Video 3 Talking Head','  HOW  = Video 4 How-To','','FOLDER STRUCTURE:','  Sniperform_Shoot/','  ├── 01_META_AD/','  ├── 02_HERO/','  ├── 03_TALKING_HEAD/','  ├── 04_HOW_TO/','  └── SELECTS/','','EXAMPLES:'];
+  VIDS.forEach(v=>v.shots.forEach(s=>{const slug=s.n.replace(/[^a-z0-9]/gi,'_').toLowerCase();lines.push(`  SF_${vcodes[v.id]}_${slug}_T1_YYMMDD.mp4`)}));
+  dl(lines.join('\n'),'Sniperform_FileNaming.txt','text/plain');
+}
+function dl(content,fname,type){const b=new Blob([content],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=fname;a.click();URL.revokeObjectURL(u)}
+
+// ── NOTIF ─────────────────────────────────────────────────────────────────────
+let nt;
+function notif(msg,type='info'){const el=document.getElementById('notif');el.textContent=msg;el.className='notif show '+(type||'');clearTimeout(nt);nt=setTimeout(()=>el.classList.remove('show'),3500)}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();if(e.key==='Enter'&&document.getElementById('add-modal').classList.contains('open'))confirmShot()});
+
+init();
+</script>
+</body>
+</html>
