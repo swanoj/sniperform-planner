@@ -278,25 +278,34 @@ const vcodes={v1:'META',v2:'HERO',v3:'TH',v4:'HOW'};
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 function init(){
-  // Check if returning from OAuth
-  const hash=new URLSearchParams(window.location.hash.slice(1));
+  // Prefer query params from the OAuth callback, but keep hash support for older redirects.
   const params=new URLSearchParams(window.location.search);
-  if(hash.get('access_token')){
-    driveToken=hash.get('access_token');
-    driveRefresh=hash.get('refresh_token')||null;
-    driveEmail=hash.get('email')||'Google Drive';
+  const hash=new URLSearchParams(window.location.hash.slice(1));
+  const accessToken=params.get('access_token')||hash.get('access_token');
+  const refreshToken=params.get('refresh_token')||hash.get('refresh_token');
+  const email=params.get('email')||hash.get('email');
+  const oauthError=params.get('error')||hash.get('error');
+  const cleanUrl=window.location.pathname||'/';
+
+  if(accessToken){
+    driveToken=accessToken;
+    driveRefresh=refreshToken||null;
+    driveEmail=email||'Google Drive';
     localStorage.setItem('sf_drive_token',driveToken);
     localStorage.setItem('sf_drive_refresh',driveRefresh||'');
     localStorage.setItem('sf_drive_email',driveEmail);
-    window.history.replaceState({},'','/');
+    window.history.replaceState({},'',cleanUrl);
     onDriveConnected();
+  } else if(oauthError){
+    notif('Drive connection failed: '+oauthError,'err');
+    window.history.replaceState({},'',cleanUrl);
   } else if(params.get('connected')==='true'){
     // Token already saved
     driveToken=localStorage.getItem('sf_drive_token');
     driveRefresh=localStorage.getItem('sf_drive_refresh');
     driveEmail=localStorage.getItem('sf_drive_email')||'Google Drive';
     if(driveToken) onDriveConnected();
-    window.history.replaceState({},'','/');
+    window.history.replaceState({},'',cleanUrl);
   } else {
     // Check localStorage
     const saved=localStorage.getItem('sf_drive_token');

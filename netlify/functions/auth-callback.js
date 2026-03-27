@@ -44,9 +44,7 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 302,
-      headers: { 
-        Location: `/?access_token=${encodeURIComponent(tokens.access_token)}&refresh_token=${encodeURIComponent(tokens.refresh_token||'')}&email=${encodeURIComponent(user.email||'')}` 
-      },
+      headers: { Location: `/?${params.toString()}` },
     };
   } catch (err) {
     return {
