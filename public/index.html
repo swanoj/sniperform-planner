@@ -323,7 +323,7 @@ function init(){
 async function connectDrive(){
   try{
     notif('Opening Google login…','info');
-    const res=await fetch('/auth/url');
+    const res=await fetch('/api/auth-url');
     const {url}=await res.json();
     window.location.href=url;
   }catch(e){
