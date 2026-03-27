@@ -275,6 +275,7 @@ let rootFolderId=null;
 const videoFolderIds={};
 const clips={};
 const vcodes={v1:'META',v2:'HERO',v3:'TH',v4:'HOW'};
+const IS_STATIC_PAGES_HOST=window.location.hostname.endsWith('github.io');
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
 function init(){
@@ -316,19 +317,33 @@ function init(){
       onDriveConnected();
     }
   }
+  if(IS_STATIC_PAGES_HOST&&!driveToken)applyStaticPagesDriveState();
   renderSidebar();renderAll();
 }
 
 // ── DRIVE AUTH ────────────────────────────────────────────────────────────────
 async function connectDrive(){
+  if(IS_STATIC_PAGES_HOST){
+    notif('This live GitHub Pages version runs without the Drive sync server. Use download/export here, or reopen the server-hosted build for Drive uploads.','info');
+    return;
+  }
   try{
     notif('Opening Google login…','info');
     const res=await fetch('/api/auth-url');
+    if(!res.ok) throw new Error('Drive auth endpoint unavailable on this host');
     const {url}=await res.json();
+    if(!url) throw new Error('Drive auth URL missing');
     window.location.href=url;
   }catch(e){
     notif('Error: '+e.message,'err');
   }
+}
+
+function applyStaticPagesDriveState(){
+  document.getElementById('dot').classList.remove('on');
+  document.getElementById('drive-label').textContent='Drive: Off on GitHub Pages';
+  document.getElementById('connect-btn').textContent='Use Export / Download';
+  document.getElementById('connect-btn').title='Google Drive sync needs the server-hosted build';
 }
 
 function onDriveConnected(){
@@ -619,6 +634,7 @@ function rUpload(){
   const ds=v.shots.filter(s=>(clips[s.id]||[]).length>0).length;
   const onDrive=v.shots.reduce((a,s)=>a+(clips[s.id]||[]).filter(c=>c.driveId).length,0);
   document.getElementById('tp-upload').innerHTML=`
+    ${IS_STATIC_PAGES_HOST?`<div class="drive-banner show" style="background:rgba(239,159,39,0.12);border-color:rgba(239,159,39,0.35);color:#ffd58a">Live Pages mode: clip naming, planning, and downloads work here. Google Drive sync stays on the server-hosted build.</div>`:''}
     ${driveToken?`<div class="drive-banner show">✓ Google Drive connected — clips upload automatically to Sniperform_Shoot/${v.num}_${v.name.replace(/[^a-z0-9]/gi,'_')}/</div>`:''}
     <div class="slabel">Clip Upload — ${v.name}</div>
     <div class="stat-row">
